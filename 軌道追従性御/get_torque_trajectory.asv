@@ -1,0 +1,70 @@
+%% 角速度からトルクを求める
+clc; clear; close all;
+Ts = 10;
+omega=2*pi/10;
+g = 9.8;
+Zw = [0;0;1];
+W = []
+M = [];
+for t=0:0.01:Ts
+    
+    x = [sin(omega*t);0;0];
+    v = [omega*cos(omega*t);0;0];
+    a = [-omega^2*sin(omega*t);0;0];
+    j = [-omega^3*cos(omega*t);0;0];
+    s = [omega^4*sin(omega*t);0;0];
+    
+    yawc = 0;
+    Xc = [cos(yawc); sin(yawc); 0];
+    Yc = [-sin(yawc); cos(yawc); 0];
+    yawdc = 0;
+    yawddc = 0;
+    
+    
+    % attitude b1c b2c b3c
+    F = a + g*Zw;
+    Zb = F/norm(F);
+    
+
+    Xb = cross(cross(Zb, Xc)/norm(cross(Zb, Xc)), Zb);
+    Yb = cross(Zb, Xc)/norm(cross(Zb, Xc));
+    Rc = [Xb'; Yb'; Zb'];
+
+    % Body angular velosity
+    Wy = dot(Xb, j) / dot(Zb, F);
+    Wx = - dot(Yb, j) / dot(Zb, F);
+    Wz = (yawdc * dot(Xc, Xb) + Wy * dot(Yc, Zb))/norm(cross(Yc, Zb));
+    W = [W ; [Wx Wy Wz]];
+    
+    % Body angular accelaretion
+    c = Zb' * (a + g*Zw);
+    cd = (Rc*Vee(W)*Zw)' * a + Zb'*j;
+    
+    B1 = c;
+    C3 = norm(cross(Yc, Zb));
+    A2 = c;
+    B3 = -Yc'*Zb;
+    
+    Xi1 = Xb'*s - 2*cd*Wy - c*Wx*Wz;
+    Xi2 = -Yb'*s - 2*cd*Wx + c*Wy*Wz;
+    Xi3 = yawddc*Xc'*Xb + 2*yawdc*Wz*Xc'*Yb - 2*yawdc*Wy*Xc'*Zb - Wx*Wy*Yc'*Yb - Wx*Wz*Yc'*Zb;
+    
+    Wxd = B1*C3*Xi2/(A2*B1*C3);
+    Wyd = Xi1/B1;
+    Wzd = (B1*Xi3 - B3*Xi1)/(B1*C3);
+
+    M = [M; [Wxd Wyd Wzd]];
+    
+end
+%% プロット
+t=0:0.01:Ts;
+plot(t, M(2:end, 1))
+hold on
+plot(t, M(2:end, 2))
+plot(t, M(2:end, 3))
+
+grid on
+xlabel('T[s]'); ylabel('Moment');
+set(gca, 'FontSize', 15, 'FontName', 'Times')
+legend({'M1', 'M2', 'M3'}, 'Location', 'NorthEast', 'Interpreter', 'latex');
+hold off
